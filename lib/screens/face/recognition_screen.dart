@@ -1,17 +1,19 @@
 // recognition_screen.dart
-// 얼굴 인식 화면 – 실제 임베딩 로직 생략 상태이며, 얼굴 감지 후 임의 사용자 정보로 이동
+// 얼굴 인식 화면 얼굴 감지 후 저장된 사용자와 비교 및 매칭
 
+import 'package:face_recognition/services/embedding_cache_service.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'dart:io';
 import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
+
+import 'dart:io';
+
 import '../../services/camera_service.dart';
 import '../../services/preprocessing_service.dart';
 import '../../services/similarity_service.dart';
 import '../../services/facenet_service.dart';
+
 import 'user_info_screen.dart';
 
 
@@ -29,6 +31,7 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
   final PreprocessingService _preprocessor = PreprocessingService();
   final FaceNetService _faceNetService = FaceNetService();
   final SimilarityService _similarityService = SimilarityService();
+  final EmbeddingCacheService _embeddingCacheService = EmbeddingCacheService();
 
   bool _isDetecting = false;
   bool _faceRecognized = false;
@@ -82,22 +85,24 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
 
             final raw = File(file.path).readAsBytesSync();
             final decoded = img.decodeImage(raw)!;
-            final cropped = _preprocessor.cropAndResize(
-                decoded, faces.first.boundingBox);
+            final cropped = _preprocessor.cropAndResize(decoded, faces.first.boundingBox);
             final input = _preprocessor.normalizeImage(cropped);
             final embedding = _faceNetService.getEmbedding(input);
             embeddings.add(embedding);
           }
 
+        final matchedUserId = await _findMostSimilarUser(embeddings);
+        final normalizedId = matchedUserId != null ? _normalizeUserId(matchedUserId) : 'unknown';
 
-        final avgEmbedding = _averageEmbedding(embeddings);
-        final matchedUserId = await _findMostSimilarUser(avgEmbedding);
+        debugPrint("🧪 normalized userId: $normalizedId");
+
 
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) =>
-                UserPreviewScreen(userId: matchedUserId ?? 'unknown',
+                UserPreviewScreen(
+                  userId: normalizedId,
                   imagePath: previewImagePath!,
                 ),
             ),
@@ -108,75 +113,39 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     });
   }
 
-  List<double> _averageEmbedding(List<List<double>> vectors) {
-    final avg = List<double>.filled(vectors[0].length, 0.0);
-    for (var v in vectors) {
-      for (int i = 0; i < v.length; i++) {
-        avg[i] += v[i];
-      }
-    }
-    return avg.map((e) => e / vectors.length).toList();
+  String _normalizeUserId(String id) {
+    return id.trim().toLowerCase().replaceAll(RegExp(r'[^\w\d_-]'), '_');
   }
 
 
-  Future<String?> _findMostSimilarUser(List<double> inputEmbedding) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final faceDir = Directory('${dir.path}/faces');
-    if (!await faceDir.exists()) return null;
-
-    // 사용자별 이미지 그룹화
-    final Map<String, List<File>> userImageMap = {};
-    for (final file in faceDir.listSync().whereType<File>()) {
-      final fileName = file.uri.pathSegments.last;
-      if (!fileName.contains('_')) continue;
-      final userId = fileName.split('_').first;
-      userImageMap.putIfAbsent(userId, () => []).add(file);
-    }
+  Future<String?> _findMostSimilarUser(List<List<double>> inputEmbeddings) async {
+    final userIds = await _embeddingCacheService.listRegisteredUsers();
 
     String? bestMatch;
     double bestScore = -1;
 
-    for (final entry in userImageMap.entries) {
-      final userId = entry.key;
-      final files = entry.value;
+    for (final userId in userIds) {
+      final userEmbeddings = await _embeddingCacheService.loadUserEmbeddings(userId);
+      for (final emb in userEmbeddings) {
+        for (final inputEmb in inputEmbeddings) {
+          final sim = _similarityService.cosineSimilarity(inputEmb, emb);
+          debugPrint("🔍 [$userId] 유사도 : $sim");
 
-      final embeddings = <List<double>>[];
-
-      for (final file in files) {
-        debugPrint("📁 [$userId] DB 이미지: ${file.path}");
-
-        final bytes = await file.readAsBytes();
-        final image = img.decodeImage(bytes);
-        if (image == null) {
-          debugPrint("⚠️ 이미지 디코딩 실패: ${file.path}");
-          continue;
+            if (sim > bestScore && sim > 0.6) {
+              bestScore = sim;
+              bestMatch = userId;
+              debugPrint("✅ 새 최고 매칭: $bestMatch (score: $bestScore)");
+            }
+          }
         }
-
-        final resized = img.copyResize(image, width:160, height:160);
-        final embedding = _faceNetService.getEmbedding(_preprocessor.normalizeImage(resized));
-        embeddings.add(embedding);
       }
-
-      if (embeddings.isEmpty) continue;
-
-      final avgEmbedding = _averageEmbedding(embeddings);
-      final sim = _similarityService.cosineSimilarity(inputEmbedding, avgEmbedding);
-
-      debugPrint("🔍 [$userId] 평균 유사도: $sim");
-
-      if (sim > bestScore && sim > 0.6) {
-        bestScore = sim;
-        bestMatch = userId;
-        debugPrint("✅ 임시 매칭: $bestMatch (score: $bestScore");
+      if (bestMatch == null) {
+        debugPrint("❌ 유사한 사용자 없음");
+      } else {
+        debugPrint("✅ 최종 매칭: $bestMatch (score: $bestScore)");
       }
+      return bestMatch;
     }
-    if (bestMatch == null) {
-      debugPrint("❌ 유사한 사용자 없음");
-    } else {
-      debugPrint("✅ 최종 매칭 : $bestMatch (score: $bestScore");
-    }
-    return bestMatch;
-  }
 
   @override
   void dispose() {
@@ -191,13 +160,26 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     final controller = _cameraService.controller;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Face Recognition')),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 0,
+      ),
       body: (!_isCameraReady || controller == null || !controller.value.isInitialized)
           ? const Center(child: CircularProgressIndicator())
       : Stack(
         children: [
           Positioned.fill(
-            child: CameraPreview(controller),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: controller.value.previewSize!.height,
+                  height: controller.value.previewSize!.width,
+                  child: CameraPreview(controller),
+                ),
+              ),
+      ),
           ),
           Positioned(
               top: 32,

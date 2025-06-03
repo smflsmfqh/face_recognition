@@ -65,9 +65,6 @@ class PreprocessingService {
         final g = pixel.g.toInt();
         final b = pixel.b.toInt();
 
-        if (y == 0 && x < 5) {
-          debugPrint("⚗️ [$x, $y] 정규화 샘플: R=$r, G=$g, B=$b → ${normalize(r)}, ${normalize(g)}, ${normalize(b)}");
-        }
 
         buffer[index++] = normalize(r);
         buffer[index++] = normalize(g);

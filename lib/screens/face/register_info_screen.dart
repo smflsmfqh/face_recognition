@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'register_info_preview_screen.dart';
 
 class RegisterInfoScreen extends StatefulWidget {
-  const RegisterInfoScreen({super.key});
+  final String previewPath;
+
+  const RegisterInfoScreen({super.key, required this.previewPath});
 
   @override
   State<RegisterInfoScreen> createState() => _RegisterInfoScreenState();
@@ -20,7 +23,20 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
   bool _saving = false;
 
   String _safeFileName(String name) {
-    return name.trim().replaceAll(RegExp(r'[^\w\d_-]'), '_');
+    return name.trim().toLowerCase().replaceAll(RegExp(r'[^\w\d_-]'), '_');
+  }
+
+  void _showSnack(String msg, {Color color = Colors.red}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: color,
+        content: Text(
+          msg,
+          style: const TextStyle(color: Colors.white),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _saveUserInfoAndRenameImages() async {
@@ -28,9 +44,11 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
     final email = _emailController.text.trim();
 
     if (name.isEmpty || email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both name and email.')),
-      );
+      _showSnack('Please enter both name and email.');
+      return;
+    }
+    if (!email.contains('@')) {
+      _showSnack('Invalid email format.');
       return;
     }
 
@@ -45,6 +63,19 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
     final safeName = _safeFileName(name);
     final capturedImagePaths = <String>[];
 
+    final dbFile = File('${faceDir.path}/user_db.json');
+    Map<String, dynamic> userDB = {};
+    if (await dbFile.exists()) {
+      final jsonStr = await dbFile.readAsString();
+      userDB = jsonDecode(jsonStr);
+    }
+
+    if (userDB.containsKey(safeName)) {
+      _showSnack('This user name is already used. Please choose a different name.', color: Colors.orange);
+      setState(() => _saving = false);
+      return;
+    }
+
     for (int i = 0; i < 3; i++) {
       final oldFile = File('${faceDir.path}/face_tmp_$i.jpg');
       final newFile = File('${faceDir.path}/${safeName}_$i.jpg');
@@ -55,47 +86,58 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
           capturedImagePaths.add('${safeName}_$i.jpg');
           debugPrint('✅ renamed: ${oldFile.path} -> ${newFile.path}');
         } else {
-          debugPrint('⚠️파일은 있지만 크기가 0입니다.: ${oldFile.path}');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Image ${i+1} is empty or corrupted.')),
-          );
+          _showSnack('Image ${i + 1} is empty or corrupted.');
           setState(() => _saving = false);
           return;
         }
       } else {
-        debugPrint('❌ old file not found: ${oldFile.path}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Image ${i+1} not found.')),
-        );
+        _showSnack('Image ${i + 1} not found.');
         setState(() => _saving = false);
         return;
       }
     }
-    // 사용자 정보 DB 저장
-    final dbFile = File('${faceDir.path}/user_db.json');
-    Map<String, dynamic> userDB = {};
-    if (await dbFile.exists()) {
-      final jsonStr = await dbFile.readAsString();
-      userDB = jsonDecode(jsonStr);
+    // 임베딩 파일 이름 변경: tmp_0.json → userId_0.json
+    for (int i = 0; i < 3; i++) {
+      final oldEmb = File('${faceDir.path}/tmp_$i.json');
+      final newEmb = File('${faceDir.path}/${safeName}_$i.json');
+      if (await oldEmb.exists()) {
+        await oldEmb.rename(newEmb.path);
+        debugPrint('✅ 임베딩 변경: ${oldEmb.path} -> ${newEmb.path}');
+      } else {
+        _showSnack('Embedding ${i + 1} not found.');
+        setState(() => _saving = false);
+        return;
+      }
     }
+
+    final embeddingFiles = List.generate(3, (i) => '${safeName}_$i.json');
 
     userDB[safeName] = {
       'name': name,
       'email': email,
       'images': capturedImagePaths,
+      'embeddings': embeddingFiles,
     };
 
     await dbFile.writeAsString(jsonEncode(userDB), flush: true);
     debugPrint('✅ 사용자 정보 저장 완료: $safeName');
 
-    setState(() => _saving = false);
+    // 임시 파일 삭제
+    final tempFiles = faceDir.listSync();
+    for (final file in tempFiles) {
+      if (file is File && (file.path.contains('tmp_') || file.path.contains('user_'))) {
+        debugPrint("🧹 임시 파일 삭제: ${file.path}");
+        file.deleteSync();
+      }
+    }
 
+    setState(() => _saving = false);
 
     Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => RegisterPreviewScreen(
-          userName: name,
+          userName: safeName,
           email: email,
         ),
         ),
@@ -105,28 +147,88 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Enter User Information')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 0,
+      ),
+      body: SingleChildScrollView(
         child: Column(
           children: [
+            const SizedBox(height: 32),
+            const Icon(
+              Icons.person,
+              size: 60,
+              color: const Color(0xFF247BBE),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'User Register',
+              style: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                //fontStyle: FontStyle.italic,
+                color: Colors.blueGrey,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ClipOval(
+              child: Image.file(
+                File(widget.previewPath),
+                width: 160,
+                height: 160,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 32),
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Enter your information",
+              style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey,),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(
+                  labelText: 'Name',
+                  labelStyle: GoogleFonts.notoSans(fontSize: 16),
+                  border: const OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
               keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                  labelText: 'Email',
+                labelStyle: GoogleFonts.notoSans(fontSize: 16),
+                border: const OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 24),
-            _saving
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: _saveUserInfoAndRenameImages,
-              child: const Text('Complete Registration'),
+            Center(
+              child: _saving ? const CircularProgressIndicator() : ElevatedButton.icon(
+                  onPressed: _saveUserInfoAndRenameImages,
+                icon: const Icon(Icons.check),
+                label: Text('Register', ),
+                style: ElevatedButton.styleFrom(
+                  elevation: 10,
+                  backgroundColor: const Color(0xFF247BBE),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                ),
+              ),
             ),
           ],
+        )
+        )
+
+      ],
         ),
       ),
     );

@@ -1,6 +1,10 @@
+// register_info_preview_screen.dart
+// 사용자가 등록한 정보 기반으로 입력 최종 확인 페이지
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RegisterPreviewScreen extends StatelessWidget {
   final String userName;
@@ -45,7 +49,11 @@ class RegisterPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Registration Preview')),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 0,
+      ),
       body: FutureBuilder<String?>(
         future: _loadPreviewImagePath(),
         builder: (context, snapshot) {
@@ -56,31 +64,58 @@ class RegisterPreviewScreen extends StatelessWidget {
           if (imagePath == null) {
             return const Center(child: Text('No image found.'));
           }
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
+          return SingleChildScrollView(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                const SizedBox(height: 100),
+                Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                Text(
                   'Registration Successful!',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.poppins(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Text('Name: $userName'),
-                Text('Email: $email'),
-                const SizedBox(height: 20),
-                Image.file(
-                  File(imagePath),
-                  height: 250,
-                  fit: BoxFit.cover,
+                const SizedBox(height: 40),
+                Text('Name: $userName',
+                    style: GoogleFonts.poppins(
+                        fontSize: 16, fontWeight: FontWeight.w500, color: Colors.blueGrey
+                    )),
+                Text('Email: $email',
+                    style: GoogleFonts.poppins(
+                        fontSize: 16, fontWeight: FontWeight.w500, color: Colors.blueGrey
+                    )),
+                const SizedBox(height: 40),
+                ClipOval(
+                  child: Image.file(
+                    File(imagePath),
+                    width: 220,
+                    height: 220,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 60),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    elevation: 10,
+                    backgroundColor: const Color(0xFF247BBE),
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-                  child: const Text('Back to Home'),
+                  child: Text('Back to Home', style: GoogleFonts.poppins(fontSize:17, fontWeight: FontWeight.w600, letterSpacing: 0.5,),
+                  ),
+                )
+              ],
                 )
               ],
             ),
+          )
           );
         },
       ),

@@ -1,5 +1,5 @@
 // camera_service.dart
-// 카메라 초기화 및 얼굴 감지를 위한 서비스 클래스
+// 카메라 초기화 및 얼굴 감지
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +20,7 @@ class CameraService {
 
     _cameraController = CameraController(
       _cameraDescription,
-      ResolutionPreset.medium,
+      ResolutionPreset.veryHigh,
       enableAudio: false,
     );
     await _cameraController!.initialize();

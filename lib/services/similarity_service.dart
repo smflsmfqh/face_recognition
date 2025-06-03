@@ -1,3 +1,6 @@
+// similarity_service.dart
+// 코사인 유사도 비교 수행
+
 import 'dart:math';
 
 class SimilarityService {

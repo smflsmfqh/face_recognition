@@ -1,9 +1,14 @@
+// user_info_screen.dart
+// 인식된 얼굴을 저장된 사용자 정보와 매칭해서 보여주는 페이지
+
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:image/image.dart' as img;
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../home_screen.dart';
 import 'recognition_screen.dart';
 
@@ -20,7 +25,14 @@ class UserPreviewScreen extends StatelessWidget {
     if (!await dbFile.exists()) return null;
 
     final jsonString = await dbFile.readAsString();
-    final userDB = jsonDecode(jsonString);
+    final userDB = jsonDecode(jsonString) as Map<String, dynamic>;
+
+    debugPrint("📄 user_db.json keys: ${userDB.keys}");
+    debugPrint("🔍 찾으려는 userId: $userId");
+    if (!userDB.containsKey(userId)) {
+      debugPrint("❌ userId '$userId' not found in user_db.json");
+      return null;
+    }
     return userDB[userId];
   }
 
@@ -29,10 +41,16 @@ class UserPreviewScreen extends StatelessWidget {
     return FutureBuilder<Map<String, dynamic>?>(
       future: _loadUserData(userId),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (userId == 'unknown' || !snapshot.hasData || snapshot.data == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text("User Info"),),
-            body: const Center(child: Text("User not found")),
+            appBar: AppBar(title: const Text("User Info"), backgroundColor: const Color(0xFF7E57C2),),
+            body: const Center(
+                child: Text(
+                  "User not found",
+                style: TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
+                ),
+            ),
           );
         }
         final data = snapshot.data!;
@@ -40,55 +58,79 @@ class UserPreviewScreen extends StatelessWidget {
         final email = data['email'];
         final images = List<String>.from(data['images']);
 
-
         return Scaffold(
-          appBar: AppBar(title: const Text('User Preview')),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            toolbarHeight: 0,
+          ),
           body: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('Recognized Face', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 50),
+                Text('Recognized Face', style: GoogleFonts.notoSans(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF247BBE),)),
                 const SizedBox(height: 10),
-                Center(child: Image.file(File(imagePath), width: 160)),
+                ClipOval(
+                  child: Image.file(
+                    File(imagePath),
+                    width: 160,
+                    height: 160,
+                    fit: BoxFit.cover,
+                  ),
+                ),
 
-                const SizedBox(height: 20),
-                Text('Name: $name', style: const TextStyle(fontSize: 20)),
-                Text('Email: $email', style: const TextStyle(fontSize: 16)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 30),
+                Text('Name: $name', style: GoogleFonts.notoSans(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.blueGrey,), ),
+                Text('Email: $email', style: GoogleFonts.notoSans(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.blueGrey,)),
+                const SizedBox(height: 40),
 
-                const Text('Registered Face', style: TextStyle(fontSize: 18)),
+                Text('Registered Face', style: GoogleFonts.notoSans(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF247BBE),)),
                 const SizedBox(height: 10),
-                Expanded(
-                  child:FutureBuilder<Directory>(
+                FutureBuilder<Directory>(
                     future: getApplicationDocumentsDirectory(),
                     builder: (context, dirSnapshot) {
                       if (!dirSnapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final faceDir = Directory('${dirSnapshot.data!.path}/faces');
-                    return ListView.builder(
-                        itemCount: images.length,
-                        itemBuilder: (_, index) {
-                          final imageEntry = images[index];
-                          final path = imageEntry.contains('/faces/') ? imageEntry : '${faceDir.path}/$imageEntry';
+                      final faceDir = Directory('${dirSnapshot.data!.path}/faces');
+                      final imageEntry = images.isNotEmpty ? images.first : null;
 
-                          final file = File(path);
-                          if (!file.existsSync()) {
-                            return const ListTile(
-                              leading: Icon(Icons.warning, color: Colors.red),
-                              title: Text("Image not found"),
-                            );
-                          }
-                          return Card(
-                            child: Image.file(file),
-                          );
+                      if (imageEntry == null) {
+                        return const Text("No registered face found.");
+                      }
+
+                      final path = imageEntry.contains('/faces/') ? imageEntry : '${faceDir.path}/$imageEntry';
+
+                      final file = File(path);
+                      if (!file.existsSync()) {
+                        return const ListTile(
+                        leading: Icon(Icons.warning, color: Colors.red),
+                        title: Text("Image not found"),
+                        );
+                      }
+                      return Container(
+                          padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF247BBE), width: 2),
+                              ),
+                            child: ClipOval(
+                              child: Image.file(
+                                file,
+                                width: 140,
+                                height: 140,
+                                fit: BoxFit.cover,
+                                ),
+        ),
+        );
                         },
-                       );
-                    },
-                ),
-               ),
-                const SizedBox(height: 16),
+                       ),
+
+
+
+                const SizedBox(height: 60),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -101,6 +143,10 @@ class UserPreviewScreen extends StatelessWidget {
                               MaterialPageRoute(builder: (_) => const HomeScreen()),
                           );
                           },
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF247BBE),
+                        foregroundColor: Colors.white,
+                      ),
                     ),
                     ElevatedButton.icon(
                         icon: const Icon(Icons.close),
@@ -110,7 +156,12 @@ class UserPreviewScreen extends StatelessWidget {
                               context,
                               MaterialPageRoute(builder: (_) => const RecognitionScreen()),
                           );
-                    },),
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                    ),
+                    ),
                   ],
                 )
     ],

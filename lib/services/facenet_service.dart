@@ -1,5 +1,5 @@
 // facenet_service.dart
-// facenet512.tflite 모델 불러와서 임베딩
+// facenet512.tflite 모델 불러옴
 
 import 'dart:typed_data';
 import 'package:tflite_flutter/tflite_flutter.dart';
