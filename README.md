@@ -31,7 +31,7 @@
 ---
 
 ## 📁 프로젝트 구조
-
+'''bash
 lib/
 ├── face/
 │ ├── register_screen.dart # 얼굴 등록 (3장 촬영)
@@ -47,6 +47,7 @@ lib/
 │ └── embedding_cache_service.dart
 ├── home_screen.dart
 └── main.dart
+'''
 
 ## 🚀 시작하기
 
