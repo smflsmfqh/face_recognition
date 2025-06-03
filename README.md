@@ -48,7 +48,7 @@ lib/
 │   └── embedding_cache_service.dart
 ├── home_screen.dart
 └── main.dart
-
+```
 
 ## 🚀 시작하기
 
