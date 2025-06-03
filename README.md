@@ -58,6 +58,7 @@ lib/
 git clone https://github.com/your-username/flutter-face-recognition.git
 cd flutter-face-recognition
 flutter pub get
+```
 
 ### 2. FaceNet512 모델 다운로드 및 등록
 
