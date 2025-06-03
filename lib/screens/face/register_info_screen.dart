@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'register_info_preview_screen.dart';
 
@@ -41,23 +42,54 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
       await faceDir.create(recursive: true);
     }
 
+    final safeName = _safeFileName(name);
+    final capturedImagePaths = <String>[];
+
     for (int i = 0; i < 3; i++) {
       final oldFile = File('${faceDir.path}/face_tmp_$i.jpg');
-      final newFile = File('${faceDir.path}/${name}_$i.jpg');
+      final newFile = File('${faceDir.path}/${safeName}_$i.jpg');
       if (await oldFile.exists()) {
-        debugPrint('✅ renamed: ${oldFile.path} → ${newFile.path}');
-        await oldFile.rename(newFile.path);
+        final length = await oldFile.length();
+        if (length > 0) {
+          await oldFile.rename(newFile.path);
+          capturedImagePaths.add('${safeName}_$i.jpg');
+          debugPrint('✅ renamed: ${oldFile.path} -> ${newFile.path}');
+        } else {
+          debugPrint('⚠️파일은 있지만 크기가 0입니다.: ${oldFile.path}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Image ${i+1} is empty or corrupted.')),
+          );
+          setState(() => _saving = false);
+          return;
+        }
       } else {
         debugPrint('❌ old file not found: ${oldFile.path}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Image ${i+1} not found.')),
+        );
         setState(() => _saving = false);
         return;
       }
     }
+    // 사용자 정보 DB 저장
+    final dbFile = File('${faceDir.path}/user_db.json');
+    Map<String, dynamic> userDB = {};
+    if (await dbFile.exists()) {
+      final jsonStr = await dbFile.readAsString();
+      userDB = jsonDecode(jsonStr);
+    }
+
+    userDB[safeName] = {
+      'name': name,
+      'email': email,
+      'images': capturedImagePaths,
+    };
+
+    await dbFile.writeAsString(jsonEncode(userDB), flush: true);
+    debugPrint('✅ 사용자 정보 저장 완료: $safeName');
 
     setState(() => _saving = false);
 
-    debugPrint("🧪 전달된 userName: $name");
-    debugPrint("🧪 전달된 email: $email");
 
     Navigator.pushReplacement(
         context,
