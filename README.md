@@ -35,7 +35,7 @@
 ```plaintext
 lib/
 ├── face/
-│   ├── register_screen.dart              # 얼굴 등록 (3장 촬영)
+│   ├── register_screen.dart              # 얼굴 등록 
 │   ├── register_info_screen.dart         # 사용자 이름/이메일 입력
 │   ├── register_info_preview_screen.dart # 등록 성공 시 미리보기
 │   ├── recognition_screen.dart           # 얼굴 인식 및 유저 식별
