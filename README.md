@@ -31,23 +31,24 @@
 ---
 
 ## 📁 프로젝트 구조
-'''
+
+```plaintext
 lib/
 ├── face/
-│ ├── register_screen.dart # 얼굴 등록 (3장 촬영)
-│ ├── register_info_screen.dart # 사용자 이름/이메일 입력
-│ ├── register_info_preview_screen.dart # 등록 성공 시 미리보기
-│ ├── recognition_screen.dart # 얼굴 인식 및 유저 식별
-│ └── user_info_screen.dart # 식별된 사용자 정보 표시
+│   ├── register_screen.dart              # 얼굴 등록 (3장 촬영)
+│   ├── register_info_screen.dart         # 사용자 이름/이메일 입력
+│   ├── register_info_preview_screen.dart # 등록 성공 시 미리보기
+│   ├── recognition_screen.dart           # 얼굴 인식 및 유저 식별
+│   └── user_info_screen.dart             # 식별된 사용자 정보 표시
 ├── services/
-│ ├── camera_service.dart
-│ ├── facenet_service.dart
-│ ├── preprocessing_service.dart
-│ ├── similarity_service.dart
-│ └── embedding_cache_service.dart
+│   ├── camera_service.dart
+│   ├── facenet_service.dart
+│   ├── preprocessing_service.dart
+│   ├── similarity_service.dart
+│   └── embedding_cache_service.dart
 ├── home_screen.dart
 └── main.dart
-'''
+
 
 ## 🚀 시작하기
 
