@@ -1,4 +1,4 @@
-# 👤 Flutter Face Recognition App (TFLite + FaceNet512)
+# 👤 Face Recognition App (TFLite + FaceNet512)
 
 > Flutter 기반 iOS/Android 얼굴 인식 앱 – TFLite로 변환한 FaceNet512 모델과 Google ML Kit을 사용해 실시간 얼굴 인식 및 사용자 식별 기능 제공
 
