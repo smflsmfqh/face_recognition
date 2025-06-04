@@ -100,7 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (liveDetected) {
             _isLiveFace = true;
             _livenessStartTime = null;
-            debugPrint("✅ Liveness 확인됨 (Yaw: $yaw, Eyes: L=$leftEye R=$rightEye)");
+            
             _updateStatus("✅ 실제 얼굴 확인됨");
 
             await Future.delayed(const Duration(seconds: 2));
@@ -188,11 +188,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
           final appDir = await getApplicationSupportDirectory();
           final faceDir = Directory('${appDir.path}/faces');
-          debugPrint("📁 저장 디렉토리: ${faceDir.path}");
 
           if (!await faceDir.exists()) {
             await faceDir.create(recursive: true);
-            debugPrint("📁 faces directory created.");
+          
           }
 
           final newEmbeddings = <List<double>>[];
@@ -209,7 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               }
 
               await File(file.path).copy(savePath);
-              debugPrint("📸 저장 완료: $savePath");
+            
 
               final raw = File(savePath).readAsBytesSync();
               final decoded = img.decodeImage(raw);
@@ -222,11 +221,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               }
               await Future.delayed(const Duration(milliseconds: 800));
             } catch (e) {
-              debugPrint("❌ 사진 저장 실패 ($i): $e");
+              
             }
           }
           await _embeddingCacheService.saveEmbeddings('tmp', newEmbeddings);
-          debugPrint("✅ 3장 임베딩 저장 완료");
+          
 
           if (mounted && previewPath != null) {
             Navigator.push(

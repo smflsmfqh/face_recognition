@@ -27,10 +27,8 @@ class UserPreviewScreen extends StatelessWidget {
     final jsonString = await dbFile.readAsString();
     final userDB = jsonDecode(jsonString) as Map<String, dynamic>;
 
-    debugPrint("📄 user_db.json keys: ${userDB.keys}");
-    debugPrint("🔍 찾으려는 userId: $userId");
     if (!userDB.containsKey(userId)) {
-      debugPrint("❌ userId '$userId' not found in user_db.json");
+      
       return null;
     }
     return userDB[userId];

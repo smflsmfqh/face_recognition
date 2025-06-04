@@ -62,7 +62,7 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     final dbPath = '${appDir.path}/faces/user_db.json';
 
     _embeddingCacheService = EmbeddingCacheService(userDbPath: dbPath);
-    debugPrint("📂 RecognitionScreen에서 로드된 user_db_path: $dbPath");
+    
 
     await _cameraService.initializeCamera();
     await _faceNetService.loadModel();
@@ -103,7 +103,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
           if (liveDetected) {
             _isLiveFace = true;
             _livenessStartTime = null;
-            debugPrint("✅ Liveness 확인됨 (Yaw: $yaw, Eyes: L=$leftEye R=$rightEye)");
             _updateStatus("✅ 실제 얼굴 확인됨");
 
             await Future.delayed(const Duration(seconds: 2));
@@ -154,7 +153,7 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
 
           if (i == 0 && await file.exists()) {
             previewImagePath = file.path;
-            debugPrint("📸 Preview Set: ${file.path}");
+            
           }
 
             final raw = File(file.path).readAsBytesSync();
@@ -168,8 +167,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
         final matchedUserId = await _findMostSimilarUser(embeddings);
         final normalizedId = matchedUserId != null ? _normalizeUserId(matchedUserId) : 'unknown';
 
-        debugPrint("🧪 normalized userId: $normalizedId");
-
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -182,9 +179,7 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
             ),
           );
         }
-      } catch (e) {
-        debugPrint("❌ 스트림 처리 오류: $e");
-      }
+      } catch (e) {}
       _isDetecting = false;
     });
   }
@@ -213,20 +208,20 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
       for (final emb in userEmbeddings) {
         for (final inputEmb in inputEmbeddings) {
           final sim = _similarityService.cosineSimilarity(inputEmb, emb);
-          debugPrint("🔍 [$userId] 유사도 : $sim");
+          
 
             if (sim > bestScore && sim > 0.6) {
               bestScore = sim;
               bestMatch = userId;
-              debugPrint("✅ 새 최고 매칭: $bestMatch (score: $bestScore)");
+              
             }
           }
         }
       }
       if (bestMatch == null) {
-        debugPrint("❌ 유사한 사용자 없음");
+       
       } else {
-        debugPrint("✅ 최종 매칭: $bestMatch (score: $bestScore)");
+      
       }
       return bestMatch;
     }

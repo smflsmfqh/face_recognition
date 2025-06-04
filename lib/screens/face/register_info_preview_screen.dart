@@ -18,11 +18,11 @@ class RegisterPreviewScreen extends StatelessWidget {
 
   Future<String?> _loadPreviewImagePath() async {
     try {
-      debugPrint("🧪 userName: $userName");
+      
       final dir = await getApplicationSupportDirectory();
       final faceDir = Directory('${dir.path}/faces');
       if (!await faceDir.exists()) {
-        debugPrint("❌ faces 디렉토리 없음: ${faceDir.path}");
+        
         return null;
       }
         final previewPath = '${faceDir.path}/${userName}_0.jpg';
@@ -31,16 +31,13 @@ class RegisterPreviewScreen extends StatelessWidget {
         final exists = file.existsSync();
         final bytes = exists ? await file.length() : 0;
 
-        debugPrint("✅ 파일 경로: $previewPath");
-        debugPrint("✅ 파일 존재 여부: $exists, 크기: $bytes bytes");
-
         if (!exists || bytes == 0) {
-          debugPrint("⚠️ 파일 없음 또는 비어 있음");
+        
           return null;
         }
         return previewPath;
       } catch (e) {
-        debugPrint('🔥 오류 발생: $e');
+        
         return null;
       }
 

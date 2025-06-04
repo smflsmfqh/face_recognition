@@ -43,9 +43,6 @@ class PreprocessingService {
     final w = (faceRect.width + 2 * margin).round().clamp(1, image.width - x);
     final h = (faceRect.height + 2 * margin).round().clamp(1, image.height - y);
 
-    if (w < 40 || h < 40) {
-      debugPrint("❌ 얼굴 크기가 너무 작음: ${w}x$h");
-    }
 
     final crop = img.copyCrop(image, x: x, y: y, width: w, height: h);
     return img.copyResize(crop, width: 160, height: 160);

@@ -84,7 +84,7 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
         if (length > 0) {
           await oldFile.rename(newFile.path);
           capturedImagePaths.add('${safeName}_$i.jpg');
-          debugPrint('✅ renamed: ${oldFile.path} -> ${newFile.path}');
+          
         } else {
           _showSnack('Image ${i + 1} is empty or corrupted.');
           setState(() => _saving = false);
@@ -102,7 +102,7 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
       final newEmb = File('${faceDir.path}/${safeName}_$i.json');
       if (await oldEmb.exists()) {
         await oldEmb.rename(newEmb.path);
-        debugPrint('✅ 임베딩 변경: ${oldEmb.path} -> ${newEmb.path}');
+        
       } else {
         _showSnack('Embedding ${i + 1} not found.');
         setState(() => _saving = false);
@@ -120,17 +120,13 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
     };
 
     await dbFile.writeAsString(jsonEncode(userDB), flush: true);
-    debugPrint('✅ 사용자 정보 저장 완료: $safeName');
-
 
     final exists = await dbFile.exists();
-    debugPrint("📄 저장 직후 존재 여부: $exists");
 
     // 임시 파일 삭제
     final tempFiles = faceDir.listSync();
     for (final file in tempFiles) {
       if (file is File && (file.path.contains('tmp_'))) {
-        debugPrint("🧹 임시 파일 삭제: ${file.path}");
         file.deleteSync();
       }
     }
