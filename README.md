@@ -63,8 +63,10 @@ flutter pub get
 
 #### 📥 모델 다운로드
 
-- [facenet512.tflite 모델 다운로드 링크](https://github.com/your-model-url/raw/main/facenet512.tflite)  
-  (예: Google Drive, GitHub Releases, 직접 변환 등)
+[facenet512.tflite 다운로드 (GitHub)](https://github.com/your-username/your-repo-name/raw/main/assets/models/facenet512.tflite)
+
+> 해당 링크는 GitHub 저장소의 `assets/models/` 디렉토리에 저장된 `.tflite` 파일을 직접 다운로드합니다.
+
 
 #### 📁 파일 위치
 
