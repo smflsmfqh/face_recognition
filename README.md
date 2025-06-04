@@ -65,7 +65,7 @@ flutter pub get
 
 [facenet512.tflite 다운로드 (GitHub)](https://github.com/smflsmfqh/face_recognition/blob/master/assets/facenet512.tflite)
 
-> 해당 링크에서 GitHub 저장소로 `assets/` 디렉토리에 저장된 `.tflite` 파일을 직접 다운로드해야합니다.
+> 해당 링크는 GitHub 저장소로 `assets/` 디렉토리에 저장된 `.tflite` 파일을 직접 다운로드해야합니다.
 
 
 #### 📁 파일 위치
