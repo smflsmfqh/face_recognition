@@ -39,7 +39,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _faceFound = false;
   bool _isCameraReady = false;
   bool _showSuccessIcon = false;
+  bool _isLiveFace = false;
   String _statusMessage = 'Scanning for face...';
+
+
 
   @override
   void initState() {
@@ -65,6 +68,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final faces = await _cameraService.detectFaces(image, _faceDetector);
 
       if (faces.isNotEmpty) {
+        final face = faces.first;
+        // Liveness 확인
+        if (!_isLiveFace) {
+          final yaw = face.headEulerAngleY;
+          final leftEye = face.leftEyeOpenProbability;
+          final rightEye = face.rightEyeOpenProbability;
+
+          if ((yaw != null && yaw.abs() > 15) ||
+              ((leftEye != null && leftEye < 0.3) || (rightEye != null && rightEye < 0.3))) {
+            _isLiveFace = true;
+            debugPrint("✅ Liveness 확인됨 (Yaw: $yaw, Eyes: L=$leftEye R=$rightEye)");
+            setState(() {
+              _statusMessage = "✅ 실제 얼굴 확인됨, 등록 시작...";
+            });
+          } else {
+            debugPrint("⏳ Liveness 부족 (Yaw: $yaw, Eyes: L=$leftEye R=$rightEye)");
+            setState(() {
+              _statusMessage = "👀 고개를 좌우로 움직이거나 눈을 감아주세요";
+            });
+            _isDetecting = false;
+            return;
+          }
+        }
+
         debugPrint("👤 얼굴 감지됨. 캡처 시작.");
         setState(() => _faceFound = true);
         await _cameraService.controller?.stopImageStream();
