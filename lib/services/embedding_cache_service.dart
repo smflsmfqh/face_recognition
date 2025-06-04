@@ -7,9 +7,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:path_provider/path_provider.dart';
 
 class EmbeddingCacheService {
+  final String userDbPath;
+
+  EmbeddingCacheService({required this.userDbPath});
   // 개별 임베딩 저장 후 파일명 리스트 반환
   Future<List<String>> saveEmbeddings(String userId, List<List<double>> embeddings) async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await getApplicationSupportDirectory();
     final faceDir = Directory('${dir.path}/faces');
     if (!await faceDir.exists()) {
       await faceDir.create(recursive: true);
@@ -28,9 +31,11 @@ class EmbeddingCacheService {
 
   // user_db.json에서 임베딩 파일 목록을 읽어 해당 임베딩 로딩
   Future<List<List<double>>> loadUserEmbeddings(String userId) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final faceDir = Directory('${dir.path}/faces');
-    final dbFile = File('${faceDir.path}/user_db.json');
+    //final dir = await getApplicationSupportDirectory();
+    //final faceDir = Directory('${dir.path}/faces');
+    //final dbFile = File('${faceDir.path}/user_db.json');
+    final dbFile = File(userDbPath);
+    final faceDir = dbFile.parent;
 
     if (!await dbFile.exists()) {
       debugPrint("❌ user_db.json 없음");
@@ -95,20 +100,41 @@ class EmbeddingCacheService {
 
   // 모든 등록 사용자 ID 목록 (증복 제거)
   Future <List<String>> listRegisteredUsers() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final faceDir = Directory('${dir.path}/faces');
+    //final dir = await getApplicationSupportDirectory();
+    //final faceDir = Directory('${dir.path}/faces');
+    //final dbFile = File('${faceDir.path}/user_db.json');
 
-    if (!await faceDir.exists()) return [];
+    final dbFile = File(userDbPath);
 
-    final userIds = <String>{};
-    for (final f in faceDir.listSync().whereType<File>()) {
-      final filename = f.uri.pathSegments.last;
-      if (!filename.endsWith('.json')) continue;
+    debugPrint("📂 [EmbeddingCache] user_db.json 경로: ${dbFile.path}");
 
-      final idPart = filename.split('_').first;
-      if (idPart.length < 3 || idPart == 'tmp' || idPart == 'user') continue;
-      userIds.add(idPart);
+    if (!await dbFile.exists()) {
+      debugPrint("❌ [EmbeddingCache] user_db.json 없음");
+      return [];
     }
-    return userIds.toList();
+
+    try {
+      final dbContent = await dbFile.readAsString();
+      final userDB = jsonDecode(dbContent) as Map<String, dynamic>;
+
+      final userIds = userDB.keys.toList();
+      debugPrint("✅ [EmbeddingCache] 등록된 사용자 ID: $userIds");
+
+      return userIds;
+    } catch (e) {
+      debugPrint("❌ [EmbeddingCache] user_db.json 파싱 실패: $e");
+      return [];
+
+      /*final userIds = <String>{};
+      for (final f in faceDir.listSync().whereType<File>()) {
+        final filename = f.uri.pathSegments.last;
+        if (!filename.endsWith('.json')) continue;
+
+        final idPart = filename.split('_').first;
+        if (idPart.length < 3 || idPart == 'tmp' || idPart == 'user') continue;
+        userIds.add(idPart);
+      }
+      return userIds.toList();*/
+    }
   }
 }

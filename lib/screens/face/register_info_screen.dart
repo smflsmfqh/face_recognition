@@ -54,7 +54,7 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
 
     setState(() => _saving = true);
 
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await getApplicationSupportDirectory();
     final faceDir = Directory('${appDir.path}/faces');
     if (!await faceDir.exists()) {
       await faceDir.create(recursive: true);
@@ -122,10 +122,14 @@ class _RegisterInfoScreenState extends State<RegisterInfoScreen> {
     await dbFile.writeAsString(jsonEncode(userDB), flush: true);
     debugPrint('✅ 사용자 정보 저장 완료: $safeName');
 
+
+    final exists = await dbFile.exists();
+    debugPrint("📄 저장 직후 존재 여부: $exists");
+
     // 임시 파일 삭제
     final tempFiles = faceDir.listSync();
     for (final file in tempFiles) {
-      if (file is File && (file.path.contains('tmp_') || file.path.contains('user_'))) {
+      if (file is File && (file.path.contains('tmp_'))) {
         debugPrint("🧹 임시 파일 삭제: ${file.path}");
         file.deleteSync();
       }

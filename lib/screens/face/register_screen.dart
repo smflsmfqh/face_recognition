@@ -33,21 +33,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final PreprocessingService _preprocessor = PreprocessingService();
   final FaceNetService _faceNetService = FaceNetService();
   final SimilarityService _similarityService = SimilarityService();
-  final EmbeddingCacheService _embeddingCacheService = EmbeddingCacheService();
+  late EmbeddingCacheService _embeddingCacheService;
   
   bool _isDetecting = false;
   bool _faceFound = false;
   bool _isCameraReady = false;
   bool _showSuccessIcon = false;
   bool _isLiveFace = false;
-  String _statusMessage = 'Scanning for face...';
+
+  String _statusText = 'Scanning for face...';
+  DateTime? _livenessStartTime;
+  DateTime? _lastDetectionTime;
+  final Duration _maxLivenessWait = Duration(seconds: 7);
 
 
 
   @override
   void initState() {
     super.initState();
-    _faceDetector = FaceDetector(options: FaceDetectorOptions());
+    _faceDetector = FaceDetector(options: FaceDetectorOptions(
+      enableClassification: true, // 눈 감을 확률 측정
+      performanceMode: FaceDetectorMode.accurate,
+    ));
     _initializeCamera();
   }
 
@@ -57,36 +64,71 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       _isCameraReady = _cameraService.isInitialized;
     });
+
+    final appDir = await getApplicationSupportDirectory();
+    final userDbPath = '${appDir.path}/faces/user_db.json';
+    _embeddingCacheService = EmbeddingCacheService(userDbPath: userDbPath);
+
     _startCameraStream();
   }
 
   void _startCameraStream() async {
     _cameraService.controller?.startImageStream((CameraImage image) async {
-      if (_isDetecting || _faceFound) return;
+      final now = DateTime.now();
+      if (_isDetecting || _faceFound ||
+          (_lastDetectionTime != null && now.difference(_lastDetectionTime!) < Duration(seconds: 1))) return;
       _isDetecting = true;
+      _lastDetectionTime = now;
 
       final faces = await _cameraService.detectFaces(image, _faceDetector);
 
       if (faces.isNotEmpty) {
         final face = faces.first;
-        // Liveness 확인
+
+        // Liveness Detection
         if (!_isLiveFace) {
           final yaw = face.headEulerAngleY;
           final leftEye = face.leftEyeOpenProbability;
           final rightEye = face.rightEyeOpenProbability;
 
-          if ((yaw != null && yaw.abs() > 15) ||
-              ((leftEye != null && leftEye < 0.3) || (rightEye != null && rightEye < 0.3))) {
+          // 얼굴 각도와 눈 깜빡임으로 liveness 탐지
+          // 15: 고개 각도, 0.3: 눈이 얼마나 열려있는지 정도(0.2~0.3 정도면 감은 눈)
+          final liveDetected = (yaw != null && yaw.abs() > 15) ||
+              (leftEye != null && leftEye < 0.3) ||
+              (rightEye != null && rightEye < 0.3);
+
+          if (liveDetected) {
             _isLiveFace = true;
+            _livenessStartTime = null;
             debugPrint("✅ Liveness 확인됨 (Yaw: $yaw, Eyes: L=$leftEye R=$rightEye)");
-            setState(() {
-              _statusMessage = "✅ 실제 얼굴 확인됨, 등록 시작...";
-            });
+            _updateStatus("✅ 실제 얼굴 확인됨");
+
+            await Future.delayed(const Duration(seconds: 2));
+            _updateStatus("📸 정면을 바라봐 주세요...");
+            await Future.delayed(const Duration(seconds: 2));
           } else {
-            debugPrint("⏳ Liveness 부족 (Yaw: $yaw, Eyes: L=$leftEye R=$rightEye)");
-            setState(() {
-              _statusMessage = "👀 고개를 좌우로 움직이거나 눈을 감아주세요";
-            });
+            _updateStatus("👀 좌우로 고개를 움직이거나 눈을 감아주세요");
+            _livenessStartTime ??= now;
+
+            if (now.difference(_livenessStartTime!) >= _maxLivenessWait) {
+              _updateStatus("⚠️ 얼굴 움직임 또는 눈 깜빡임이 감지되지 않았습니다.");
+              await Future.delayed(const Duration(seconds: 1));
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text(
+                    '❌ Liveness 확인 실패, 홈 화면으로 돌아갑니다.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+
+              await Future.delayed(const Duration(seconds: 4));
+              if (mounted) Navigator.pop(context);
+            }
             _isDetecting = false;
             return;
           }
@@ -95,6 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         debugPrint("👤 얼굴 감지됨. 캡처 시작.");
         setState(() => _faceFound = true);
         await _cameraService.controller?.stopImageStream();
+        await Future.delayed(const Duration(milliseconds: 300));
 
         final picture = await _cameraService.controller!.takePicture();
         final raw = File(picture.path).readAsBytesSync();
@@ -116,7 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _isDetecting = false;
                 _faceFound = false;
                 _showSuccessIcon = false;
-                _statusMessage = '';
+                _statusText = '';
               });
 
               if (mounted) {
@@ -140,11 +183,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               }
             }
           }
-
           // 중복 아님 -> 얼굴 등록 시작
           await Future.delayed(const Duration(seconds: 2));
 
-          final appDir = await getApplicationDocumentsDirectory();
+          final appDir = await getApplicationSupportDirectory();
           final faceDir = Directory('${appDir.path}/faces');
           debugPrint("📁 저장 디렉토리: ${faceDir.path}");
 
@@ -197,6 +239,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isDetecting = false;
       });
     }
+  void _updateStatus(String newText) {
+    if (!mounted) return;
+    if (_statusText != newText) {
+      setState(() => _statusText = newText);
+    }
+  }
 
   @override
   void dispose() {
@@ -233,7 +281,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 Positioned(
-                    bottom: 40,
+                    top: 32,
                     left: 0,
                     right: 0,
                     child: Column(
@@ -252,7 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            _statusMessage,
+                            _statusText,
                             style: GoogleFonts.poppins(color: Colors.white, fontSize: 18),
                           ),
                         )

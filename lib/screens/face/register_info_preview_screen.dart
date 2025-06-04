@@ -19,7 +19,7 @@ class RegisterPreviewScreen extends StatelessWidget {
   Future<String?> _loadPreviewImagePath() async {
     try {
       debugPrint("🧪 userName: $userName");
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await getApplicationSupportDirectory();
       final faceDir = Directory('${dir.path}/faces');
       if (!await faceDir.exists()) {
         debugPrint("❌ faces 디렉토리 없음: ${faceDir.path}");

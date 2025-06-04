@@ -19,7 +19,7 @@ class UserPreviewScreen extends StatelessWidget {
   const UserPreviewScreen({required this.userId, required this.imagePath});
 
   Future<Map<String, dynamic>?> _loadUserData(String userId) async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await getApplicationSupportDirectory();
     final dbFile = File('${dir.path}/faces/user_db.json');
 
     if (!await dbFile.exists()) return null;
@@ -89,7 +89,7 @@ class UserPreviewScreen extends StatelessWidget {
                 Text('Registered Face', style: GoogleFonts.notoSans(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF247BBE),)),
                 const SizedBox(height: 10),
                 FutureBuilder<Directory>(
-                    future: getApplicationDocumentsDirectory(),
+                    future: getApplicationSupportDirectory(),
                     builder: (context, dirSnapshot) {
                       if (!dirSnapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());

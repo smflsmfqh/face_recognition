@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+
 
 import 'dart:io';
 
@@ -31,7 +33,8 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
   final PreprocessingService _preprocessor = PreprocessingService();
   final FaceNetService _faceNetService = FaceNetService();
   final SimilarityService _similarityService = SimilarityService();
-  final EmbeddingCacheService _embeddingCacheService = EmbeddingCacheService();
+  //final EmbeddingCacheService _embeddingCacheService = EmbeddingCacheService();
+  EmbeddingCacheService? _embeddingCacheService;
 
   bool _isDetecting = false;
   bool _faceRecognized = false;
@@ -47,11 +50,20 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
   @override
   void initState() {
     super.initState();
-    _faceDetector = FaceDetector(options: FaceDetectorOptions());
+    _faceDetector = FaceDetector(options: FaceDetectorOptions(
+      enableClassification: true,
+      performanceMode: FaceDetectorMode.accurate,
+    ));
     _initialize();
   }
 
   Future<void> _initialize() async {
+    final appDir = await getApplicationSupportDirectory();
+    final dbPath = '${appDir.path}/faces/user_db.json';
+
+    _embeddingCacheService = EmbeddingCacheService(userDbPath: dbPath);
+    debugPrint("📂 RecognitionScreen에서 로드된 user_db_path: $dbPath");
+
     await _cameraService.initializeCamera();
     await _faceNetService.loadModel();
 
@@ -177,6 +189,7 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     });
   }
   void _updateStatus(String newText) {
+    if (!mounted) return;
     if (_statusText != newText) {
       setState(() => _statusText = newText);
     }
@@ -188,13 +201,15 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
 
 
   Future<String?> _findMostSimilarUser(List<List<double>> inputEmbeddings) async {
-    final userIds = await _embeddingCacheService.listRegisteredUsers();
+    if (_embeddingCacheService == null) return null;
+
+    final userIds = await _embeddingCacheService!.listRegisteredUsers();
 
     String? bestMatch;
     double bestScore = -1;
 
     for (final userId in userIds) {
-      final userEmbeddings = await _embeddingCacheService.loadUserEmbeddings(userId);
+      final userEmbeddings = await _embeddingCacheService!.loadUserEmbeddings(userId);
       for (final emb in userEmbeddings) {
         for (final inputEmb in inputEmbeddings) {
           final sim = _similarityService.cosineSimilarity(inputEmb, emb);
